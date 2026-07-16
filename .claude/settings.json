@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npm run test *)",
+      "Bash(npm run lint *)",
+      "Bash(npm run typecheck *)",
+      "Bash(npm run build *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git blame *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(git remote -v)",
+      "Bash(git branch)",
+      "Bash(git branch --show-current)",
+      "Bash(git worktree list *)",
+      "PowerShell(npm test *)",
+      "PowerShell(npm run test *)",
+      "PowerShell(npm run lint *)",
+      "PowerShell(npm run typecheck *)",
+      "PowerShell(npm run build *)",
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
+      "PowerShell(git show *)",
+      "PowerShell(git blame *)",
+      "PowerShell(git ls-files *)",
+      "PowerShell(git rev-parse *)",
+      "PowerShell(git remote -v)",
+      "PowerShell(git branch)",
+      "PowerShell(git branch --show-current)",
+      "PowerShell(git worktree list *)"
+    ]
+  }
+}
