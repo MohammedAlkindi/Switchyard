@@ -38,7 +38,8 @@ export function readState(repoRoot: string): FleetState {
   if (!existsSync(file)) {
     return { version: 1, agents: {} };
   }
-  const raw = readFileSync(file, 'utf8');
+  // Strip a UTF-8 BOM: Windows editors add one and JSON.parse rejects it.
+  const raw = readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

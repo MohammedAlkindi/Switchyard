@@ -58,8 +58,7 @@ fleet spawn claude              # isolated worktree on branch fleet/claude
 cd .fleet/worktrees/claude      # point your agent here and let it work
 fleet check                     # any files also touched by other agents?
 fleet diff claude               # review the branch before merging
-git merge fleet/claude          # merge from your main checkout, then:
-fleet clean                     # sweep up fully merged agents
+fleet merge claude              # merge into your current branch + clean up the agent
 ```
 
 ## Commands
@@ -71,10 +70,32 @@ fleet clean                     # sweep up fully merged agents
 | `fleet status <agent>` | One agent in detail: uncommitted files, diff stat vs base, ahead/behind | — |
 | `fleet check` | Table of files touched by more than one agent — collision risks before merging. Exits 1 if any are found (CI-friendly) | — |
 | `fleet diff <agent>` | Full diff of the agent's branch against its base | `--base <branch>` diff against a different branch |
+| `fleet merge <agent>` | Check for collisions, merge the agent's branch into the current branch, then remove the worktree and branch. A conflicting merge is aborted — never left half-done | `--no-clean` keep the worktree and branch, `--delete-branch` explicit form of the default cleanup |
 | `fleet remove <agent>` | Remove the worktree; refuses if there are uncommitted changes | `--force` discard changes, `--delete-branch` also delete the branch |
 | `fleet clean` | Remove agents whose branches are fully merged into their base | `--dry-run` list only |
+| `fleet watch` | `fleet list`, re-rendered live until Ctrl+C | `--interval <seconds>` refresh rate (default 3) |
+| `fleet doctor` | Diagnose git version, state file validity, orphaned worktrees, and stale entries. Exits 1 if problems remain | `--fix` repair: rebuild state from `git worktree list`, adopt/remove orphans, prune stale entries |
+| `fleet completion <shell>` | Print a completion script for `bash`, `zsh`, or `fish` (agent names are a snapshot from generation time) | — |
 
 All commands work from the main checkout **or** from inside any agent worktree.
+
+## Configuration
+
+An optional `.fleetrc.json` at the repo root sets per-repo defaults. Precedence everywhere: CLI flag > `.fleetrc.json` > built-in default.
+
+```json
+{
+  "defaultBase": "main",
+  "watchInterval": 3,
+  "autoClean": false
+}
+```
+
+- `defaultBase` — base branch for `fleet spawn` when `--from` is not passed (built-in default: the current branch).
+- `watchInterval` — refresh interval for `fleet watch`, in seconds (built-in default: 3).
+- `autoClean` — when `true`, every successful `fleet merge` also runs a `fleet clean` sweep for other fully merged agents (built-in default: `false`).
+
+A malformed config file is a hard error with the offending key named; a missing one is fine.
 
 ## How it works
 

@@ -4,11 +4,15 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { check } from './commands/check.js';
 import { clean } from './commands/clean.js';
+import { completion } from './commands/completion.js';
 import { diff } from './commands/diff.js';
+import { doctor } from './commands/doctor.js';
 import { list } from './commands/list.js';
+import { merge } from './commands/merge.js';
 import { remove } from './commands/remove.js';
 import { spawn } from './commands/spawn.js';
 import { status } from './commands/status.js';
+import { watch } from './commands/watch.js';
 import { FleetError } from './lib/errors.js';
 
 const pkg = JSON.parse(
@@ -83,6 +87,39 @@ program
   .action((name: string, opts: { base?: string }) => run(() => diff(name, opts)));
 
 program
+  .command('watch')
+  .description('live-updating `fleet list`, re-rendered on an interval until Ctrl+C')
+  .option('--interval <seconds>', 'refresh interval in seconds (default: 3)', parseFloat)
+  .action((opts: { interval?: number }) => run(() => watch(opts)));
+
+program
+  .command('merge')
+  .description("merge an agent's branch into the current branch, then clean up the agent")
+  .argument('<agent-name>', 'agent to merge')
+  .option('--delete-branch', 'delete the branch after merging (already the default cleanup)')
+  .option('--no-clean', 'keep the worktree and branch after merging')
+  .action((name: string, opts: { deleteBranch?: boolean; clean?: boolean }) =>
+    run(() => merge(name, opts)),
+  );
+
+program
+  .command('doctor')
+  .description('diagnose state/reality drift; exits 1 if problems remain unfixed')
+  .option('--fix', 'repair what can be repaired (rebuild state, adopt/remove orphans, prune stale entries)')
+  .action((opts: { fix?: boolean }) =>
+    run(async () => {
+      const result = await doctor(opts);
+      if (!result.healthy) process.exitCode = 1;
+    }),
+  );
+
+program
+  .command('completion')
+  .description('output a shell completion script (agent names are a snapshot)')
+  .argument('<shell>', 'bash, zsh, or fish')
+  .action((shell: string) => run(() => completion(shell)));
+
+program
   .command('remove')
   .description("remove an agent's worktree (branch is kept unless --delete-branch)")
   .argument('<agent-name>', 'agent to remove')
@@ -105,8 +142,10 @@ program.addHelpText(
     '  fleet spawn codex --from main   spawn a second agent off main\n' +
     '  fleet check                     any files touched by both?\n' +
     '  fleet diff claude               review before merging fleet/claude\n' +
+    '  fleet merge claude              merge fleet/claude and clean it up\n' +
     '  fleet remove codex --force      drop a worktree, discarding its changes\n' +
-    '  fleet clean                     sweep up fully merged agents\n',
+    '  fleet clean                     sweep up fully merged agents\n' +
+    '  fleet doctor --fix              repair state drift after manual surgery\n',
 );
 
 program.parseAsync(process.argv).catch((err: unknown) => {

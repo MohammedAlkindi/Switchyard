@@ -30,21 +30,21 @@ export interface AgentListing {
   lastActivity: string | null;
 }
 
-export async function list(options: ListOptions = {}): Promise<AgentListing[]> {
+/** Gather the per-agent data `fleet list` displays, without printing anything. */
+export async function collectListings(options: ListOptions = {}): Promise<AgentListing[]> {
   const repoRoot = await getMainRepoRoot(options.cwd ?? process.cwd());
   const state = readState(repoRoot);
   const agents = Object.values(state.agents).sort((a, b) => a.name.localeCompare(b.name));
-
-  if (agents.length === 0) {
-    console.log('No active agents. Run `fleet spawn <name>` to create one.');
-    return [];
-  }
 
   const listings: AgentListing[] = [];
   for (const record of agents) {
     listings.push(await describeAgent(repoRoot, record));
   }
+  return listings;
+}
 
+/** Render listings as the `fleet list` table. Shared with `fleet watch`. */
+export function buildListTable(listings: AgentListing[]): string {
   const rows = listings.map((l) => [
     l.name,
     l.branch,
@@ -58,8 +58,18 @@ export async function list(options: ListOptions = {}): Promise<AgentListing[]> {
     relativeTime(l.lastActivity),
     l.worktreePath,
   ]);
-  console.log(table(['AGENT', 'BRANCH', 'BASE', '+/-', 'CHANGES', 'LAST ACTIVITY', 'WORKTREE'], rows));
+  return table(['AGENT', 'BRANCH', 'BASE', '+/-', 'CHANGES', 'LAST ACTIVITY', 'WORKTREE'], rows);
+}
 
+export async function list(options: ListOptions = {}): Promise<AgentListing[]> {
+  const listings = await collectListings(options);
+
+  if (listings.length === 0) {
+    console.log('No active agents. Run `fleet spawn <name>` to create one.');
+    return [];
+  }
+
+  console.log(buildListTable(listings));
   return listings;
 }
 

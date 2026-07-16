@@ -17,8 +17,8 @@ All four of build, test, lint, and typecheck must pass before any commit.
 ## Directory structure
 
 - `src/cli.ts` — commander entry point; maps CLI commands/flags to command functions and formats errors.
-- `src/commands/` — one file per CLI command (`spawn`, `list`, `status`, `check`, `diff`, `remove`, `clean`).
-- `src/lib/` — shared internals: `state.ts` (`.fleet/state.json` I/O), `git.ts` (simple-git wrappers), `format.ts` (tables/colors), `errors.ts` (`FleetError`).
+- `src/commands/` — one file per CLI command (`spawn`, `list`, `status`, `check`, `diff`, `merge`, `remove`, `clean`, `watch`, `doctor`, `completion`).
+- `src/lib/` — shared internals: `state.ts` (`.fleet/state.json` I/O), `config.ts` (`.fleetrc.json` defaults), `git.ts` (simple-git wrappers), `format.ts` (tables/colors), `errors.ts` (`FleetError`).
 - `tests/` — vitest suites, one per command; `helpers.ts` builds throwaway git repos that every test runs against.
 - `docs/` — `architecture.md` (design rationale, state schema, limitations), `deployment.md` (release process).
 - `.github/workflows/` — CI: lint, typecheck, build, test on push/PR to `main`.

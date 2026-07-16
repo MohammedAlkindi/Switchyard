@@ -11,6 +11,9 @@ export function table(head: string[], rows: string[][]): string {
   return t.toString();
 }
 
+/** ANSI clear screen + scrollback + cursor home; used between `fleet watch` frames. */
+export const CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
+
 export const ok = (msg: string): string => chalk.green(msg);
 export const warn = (msg: string): string => chalk.yellow(msg);
 export const fail = (msg: string): string => chalk.red(msg);

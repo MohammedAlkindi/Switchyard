@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { readConfig } from '../lib/config.js';
 import { FleetError } from '../lib/errors.js';
 import { bold, dim, ok } from '../lib/format.js';
 import {
@@ -64,7 +65,8 @@ export async function spawn(name: string, options: SpawnOptions = {}): Promise<S
     );
   }
 
-  let base = options.from;
+  // Precedence: --from flag > .fleetrc.json defaultBase > current branch.
+  let base = options.from ?? readConfig(repoRoot).defaultBase;
   if (base) {
     await verifyBranch(git, base, 'Base');
   } else {
