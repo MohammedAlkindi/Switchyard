@@ -1,0 +1,57 @@
+{
+  "name": "git-fleet",
+  "version": "0.1.0",
+  "description": "Manage multiple AI coding agents working on the same git repository: isolated worktrees per agent, collision detection before merge, safe cleanup.",
+  "keywords": [
+    "git",
+    "worktree",
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "cursor",
+    "cli",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "author": "Mohammed Alkindi <alkndymhmd692@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MohammedAlkindi/Switchyard-.git"
+  },
+  "type": "module",
+  "bin": {
+    "fleet": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@types/node": "^22.5.0",
+    "@types/tmp": "^0.2.6",
+    "eslint": "^9.9.0",
+    "tmp": "^0.2.3",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.2.0",
+    "vitest": "^2.1.0"
+  }
+}

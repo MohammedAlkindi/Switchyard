@@ -1,0 +1,12 @@
+# Fleet's own runtime state must never be committed to any repo it manages —
+# including this one.
+.fleet/
+
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+.env
+.DS_Store
+npm-debug.log*
