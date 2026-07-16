@@ -9,6 +9,8 @@ this package.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-16
+
 ### Added
 
 - Initial `fleet` CLI: one isolated git worktree per AI coding agent
@@ -47,4 +49,5 @@ this package.
 - Project name is **Switchyard**; the npm package (`git-fleet`) and installed
   binary (`fleet`) are unchanged.
 
-[Unreleased]: https://github.com/MohammedAlkindi/Switchyard-/commits/main
+[Unreleased]: https://github.com/MohammedAlkindi/Switchyard-/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/MohammedAlkindi/Switchyard-/releases/tag/v0.1.0
