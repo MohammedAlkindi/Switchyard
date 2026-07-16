@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for any AI coding agent working on this repository (Fleet — npm `git-fleet`, bin `fleet`).
+Instructions for any AI coding agent working on this repository (Switchyard — npm `git-fleet`, bin `fleet`).
 
 ## Commands
 
@@ -17,8 +17,8 @@ All four of build, test, lint, and typecheck must pass before any commit.
 ## Directory structure
 
 - `src/cli.ts` — commander entry point; maps CLI commands/flags to command functions and formats errors.
-- `src/commands/` — one file per CLI command (`spawn`, `list`, `status`, `check`, `diff`, `merge`, `remove`, `clean`, `watch`, `doctor`, `completion`).
-- `src/lib/` — shared internals: `state.ts` (`.fleet/state.json` I/O), `config.ts` (`.fleetrc.json` defaults), `git.ts` (simple-git wrappers), `format.ts` (tables/colors), `errors.ts` (`FleetError`).
+- `src/commands/` — one file per CLI command (`spawn`, `list`, `status`, `check`, `diff`, `sync`, `exec`, `merge`, `pr`, `remove`, `clean`, `watch`, `doctor`, `completion`).
+- `src/lib/` — shared internals: `state.ts` (`.fleet/state.json` I/O), `config.ts` (`.fleetrc.json` defaults), `git.ts` (simple-git wrappers), `proc.ts` (child-process helpers for hooks/exec/gh), `lines.ts` (diff parsing for `check --lines`), `format.ts` (tables/colors), `errors.ts` (`FleetError`).
 - `tests/` — vitest suites, one per command; `helpers.ts` builds throwaway git repos that every test runs against.
 - `docs/` — `architecture.md` (design rationale, state schema, limitations), `deployment.md` (release process).
 - `.github/workflows/` — CI: lint, typecheck, build, test on push/PR to `main`.
@@ -31,4 +31,4 @@ All four of build, test, lint, and typecheck must pass before any commit.
 
 ## Dog food
 
-This repo eats its own dog food: if you're asked to make a nontrivial change and other agents may be active on this checkout, isolate your work first — run `fleet spawn <your-name>` (build it first with `npm run build`, or `npm link` once) and work inside the printed worktree. Yes, using Fleet to build Fleet.
+This repo eats its own dog food: if you're asked to make a nontrivial change and other agents may be active on this checkout, isolate your work first — run `fleet spawn <your-name>` (build it first with `npm run build`, or `npm link` once) and work inside the printed worktree. Yes, using Switchyard to build Switchyard.

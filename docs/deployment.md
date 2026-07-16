@@ -1,6 +1,6 @@
 # Deployment
 
-Fleet publishes to npm as [`git-fleet`](https://www.npmjs.com/package/git-fleet). The installed binary is `fleet`.
+Switchyard publishes to npm as [`git-fleet`](https://www.npmjs.com/package/git-fleet) (`switchyard` and `fleet-cli` were taken). The installed binary is `fleet`.
 
 ## Before any release
 
@@ -31,6 +31,10 @@ Walk the full command loop in the scratch repo, not just `--help` — the failur
 
 ## Publishing a new version
 
+First, move the `Unreleased` entries in [CHANGELOG.md](../CHANGELOG.md) under a
+new version heading (dated, matching the version you're about to publish) and
+commit that — the tag `npm version` creates should include the changelog.
+
 ```sh
 npm version patch        # or: minor | major
 git push origin main --follow-tags
@@ -46,3 +50,7 @@ Semver conventions for this package:
 - **major** — anything that breaks existing usage: renamed/removed commands or flags, changed exit-code semantics, or a `state.json` schema change without a migration path (`version` field in the schema exists for this).
 
 Only the `dist/` output ships to npm (`files` in `package.json`); `prepare` rebuilds it on publish, so there is no manual build step to forget.
+
+## After the first publish
+
+The README's npm version/downloads badges are parked in an HTML comment near the top — shields.io renders "package not found" for unpublished packages. Uncomment them once `git-fleet` is live on npm.
