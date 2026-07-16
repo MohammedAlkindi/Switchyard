@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { readConfig } from '../lib/config.js';
 import { FleetError } from '../lib/errors.js';
-import { bold, dim, ok } from '../lib/format.js';
+import { bold, dim, ok, warn } from '../lib/format.js';
+import { runShell } from '../lib/proc.js';
 import {
   addWorktree,
   branchExists,
@@ -25,6 +26,10 @@ export interface SpawnResult {
   record: AgentRecord;
   /** Absolute path of the new worktree. */
   worktreePath: string;
+  /** `copyOnSpawn` entries actually copied into the worktree. */
+  copied: string[];
+  /** Exit code of the `postSpawn` hook; undefined when none is configured. */
+  postSpawnExitCode?: number;
 }
 
 // Names become branch names and directory names, so keep them filesystem- and
@@ -65,8 +70,9 @@ export async function spawn(name: string, options: SpawnOptions = {}): Promise<S
     );
   }
 
+  const config = readConfig(repoRoot);
   // Precedence: --from flag > .fleetrc.json defaultBase > current branch.
-  let base = options.from ?? readConfig(repoRoot).defaultBase;
+  let base = options.from ?? config.defaultBase;
   if (base) {
     await verifyBranch(git, base, 'Base');
   } else {
@@ -96,9 +102,35 @@ export async function spawn(name: string, options: SpawnOptions = {}): Promise<S
   console.log(ok(`Spawned agent ${bold(name)}`));
   console.log(`  branch:   ${branch} ${dim(`(from ${base})`)}`);
   console.log(`  worktree: ${worktreeAbs}`);
+
+  // Provision the worktree: gitignored essentials first, then the hook, so
+  // e.g. `postSpawn: "npm ci"` can rely on a copied .npmrc or .env.
+  const copied: string[] = [];
+  for (const entry of config.copyOnSpawn ?? []) {
+    const source = path.join(repoRoot, entry);
+    if (!existsSync(source)) {
+      console.log(dim(`  copyOnSpawn: ${entry} not found in the repo root — skipped`));
+      continue;
+    }
+    cpSync(source, path.join(worktreeAbs, entry), { recursive: true });
+    copied.push(entry);
+    console.log(`  copied:   ${entry}`);
+  }
+
+  let postSpawnExitCode: number | undefined;
+  if (config.postSpawn) {
+    console.log(dim(`  postSpawn: ${config.postSpawn}`));
+    postSpawnExitCode = await runShell(config.postSpawn, worktreeAbs);
+    if (postSpawnExitCode !== 0) {
+      console.log(
+        warn(`  postSpawn hook failed (exit ${postSpawnExitCode}) — the worktree was kept; finish setting it up manually.`),
+      );
+    }
+  }
+
   console.log('');
   console.log('Point your agent at it:');
   console.log(`  cd ${worktreeAbs}`);
 
-  return { record, worktreePath: worktreeAbs };
+  return { record, worktreePath: worktreeAbs, copied, postSpawnExitCode };
 }

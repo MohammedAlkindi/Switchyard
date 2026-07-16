@@ -49,4 +49,16 @@ describe('fleet list', () => {
     const listings = await list({ cwd: repo.root });
     expect(listings[0]?.worktreeMissing).toBe(true);
   });
+
+  it('--json prints the listings as parseable JSON', async () => {
+    await spawn('alice', { cwd: repo.root });
+
+    const listings = await list({ json: true, cwd: repo.root });
+
+    const printed = JSON.parse(
+      vi.mocked(console.log).mock.calls.at(-1)?.[0] as string,
+    ) as typeof listings;
+    expect(printed).toEqual(listings);
+    expect(printed[0]).toMatchObject({ name: 'alice', branch: 'fleet/alice' });
+  });
 });

@@ -12,6 +12,8 @@ import { getAgent, readState, worktreeAbsPath } from '../lib/state.js';
 import type { AgentRecord } from '../lib/state.js';
 
 export interface StatusOptions {
+  /** Print machine-readable JSON instead of the human summary. */
+  json?: boolean;
   cwd?: string;
 }
 
@@ -42,6 +44,12 @@ export async function status(name: string, options: StatusOptions = {}): Promise
   ).trimEnd();
   const uncommitted = worktreeMissing ? [] : await uncommittedFiles(abs);
 
+  const result: StatusResult = { record, ahead, behind, uncommitted, diffStat, worktreeMissing };
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return result;
+  }
+
   console.log(bold(`Agent ${record.name}`));
   console.log(`  branch:   ${record.branch}`);
   console.log(`  base:     ${record.baseBranch} (${ahead} ahead, ${behind} behind)`);
@@ -66,5 +74,5 @@ export async function status(name: string, options: StatusOptions = {}): Promise
     console.log(dim(`No committed changes vs ${record.baseBranch} yet.`));
   }
 
-  return { record, ahead, behind, uncommitted, diffStat, worktreeMissing };
+  return result;
 }

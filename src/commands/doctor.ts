@@ -19,6 +19,8 @@ export const MIN_GIT = { major: 2, minor: 31 };
 export interface DoctorOptions {
   /** Repair what can be repaired instead of only reporting. */
   fix?: boolean;
+  /** Print machine-readable JSON instead of the human report. */
+  json?: boolean;
   cwd?: string;
 }
 
@@ -59,7 +61,7 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
       detail: 'not inside a git repository — run fleet from within the repo it should manage',
       fixed: false,
     });
-    return finish(checks);
+    return finish(checks, options.json ?? false);
   }
 
   const git = gitAt(repoRoot);
@@ -117,7 +119,7 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
       detail: 'skipped: state file unreadable',
       fixed: false,
     });
-    return finish(checks);
+    return finish(checks, options.json ?? false);
   }
 
   // --- orphaned worktrees (on disk, not in state) ----------------------------
@@ -195,11 +197,15 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorResult>
     writeState(repoRoot, state);
   }
 
-  return finish(checks);
+  return finish(checks, options.json ?? false);
 }
 
-function finish(checks: DoctorCheck[]): DoctorResult {
+function finish(checks: DoctorCheck[], json: boolean): DoctorResult {
   const healthy = checks.every((c) => c.ok || c.fixed);
+  if (json) {
+    console.log(JSON.stringify({ checks, healthy }, null, 2));
+    return { checks, healthy };
+  }
   for (const c of checks) {
     const mark = c.ok ? ok('ok    ') : c.fixed ? warn('fixed ') : fail('fail  ');
     console.log(`${mark} ${c.name.padEnd(20)} ${c.detail}`);

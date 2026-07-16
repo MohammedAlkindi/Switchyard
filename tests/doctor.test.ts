@@ -38,6 +38,17 @@ describe('fleet doctor', () => {
     }
   });
 
+  it('--json prints checks and health as parseable JSON', async () => {
+    await spawn('alice', { cwd: repo.root });
+
+    const result = await doctor({ json: true, cwd: repo.root });
+
+    const printed = JSON.parse(
+      vi.mocked(console.log).mock.calls.at(-1)?.[0] as string,
+    ) as { checks: unknown; healthy: boolean };
+    expect(printed).toEqual({ checks: result.checks, healthy: true });
+  });
+
   it('detects a corrupted state file and rebuilds it with --fix', async () => {
     await spawn('alice', { cwd: repo.root });
     writeFileSync(statePath(repo.root), 'not json {{{');

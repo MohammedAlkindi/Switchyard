@@ -7,11 +7,14 @@ import { clean } from './commands/clean.js';
 import { completion } from './commands/completion.js';
 import { diff } from './commands/diff.js';
 import { doctor } from './commands/doctor.js';
+import { exec } from './commands/exec.js';
 import { list } from './commands/list.js';
 import { merge } from './commands/merge.js';
+import { pr } from './commands/pr.js';
 import { remove } from './commands/remove.js';
 import { spawn } from './commands/spawn.js';
 import { status } from './commands/status.js';
+import { sync } from './commands/sync.js';
 import { watch } from './commands/watch.js';
 import { FleetError } from './lib/errors.js';
 
@@ -41,6 +44,10 @@ async function run(fn: () => Promise<unknown>): Promise<void> {
 
 const program = new Command();
 
+// Required for `fleet exec` passThroughOptions; only affects program-level
+// options (--version/--help), which must now precede the subcommand.
+program.enablePositionalOptions();
+
 program
   .name('fleet')
   .description(
@@ -61,20 +68,24 @@ program
 program
   .command('list')
   .description('show all active agents: branch, ahead/behind, changes, last activity')
-  .action(() => run(() => list()));
+  .option('--json', 'print machine-readable JSON instead of a table')
+  .action((opts: { json?: boolean }) => run(() => list(opts)));
 
 program
   .command('status')
   .description("detailed view of one agent's worktree and branch vs its base")
   .argument('<agent-name>', 'agent to inspect')
-  .action((name: string) => run(() => status(name)));
+  .option('--json', 'print machine-readable JSON instead of the summary')
+  .action((name: string, opts: { json?: boolean }) => run(() => status(name, opts)));
 
 program
   .command('check')
   .description('flag files touched by more than one agent (exits 1 if any are found)')
-  .action(() =>
+  .option('--lines', 'only count files whose edited line ranges actually overlap')
+  .option('--json', 'print machine-readable JSON instead of a table')
+  .action((opts: { lines?: boolean; json?: boolean }) =>
     run(async () => {
-      const result = await check();
+      const result = await check(opts);
       if (result.collisions.length > 0) process.exitCode = 1;
     }),
   );
@@ -85,6 +96,41 @@ program
   .argument('<agent-name>', 'agent to diff')
   .option('--base <branch>', 'diff against this branch instead of the recorded base')
   .action((name: string, opts: { base?: string }) => run(() => diff(name, opts)));
+
+program
+  .command('sync')
+  .description("merge an agent's base branch into its branch, catching it up")
+  .argument('<agent-name>', 'agent to sync')
+  .action((name: string) => run(() => sync(name)));
+
+program
+  .command('exec')
+  .description("run a shell command inside an agent's worktree (or all worktrees)")
+  .argument('[agent-name]', 'agent whose worktree to run in (omit with --all)')
+  .argument('[command...]', 'command to run, e.g. `fleet exec claude -- npm test`')
+  .option('--all', "run in every agent's worktree, sequentially")
+  .passThroughOptions()
+  .action((name: string | undefined, command: string[], opts: { all?: boolean }) =>
+    run(async () => {
+      // With --all the first positional is part of the command, not an agent.
+      let tokens = opts.all && name !== undefined ? [name, ...command] : command;
+      // commander keeps the literal `--` separator in pass-through args.
+      if (tokens[0] === '--') tokens = tokens.slice(1);
+      const result = await exec(opts.all ? undefined : name, tokens, { all: opts.all });
+      if (!result.ok) process.exitCode = 1;
+    }),
+  );
+
+program
+  .command('pr')
+  .description("push an agent's branch to origin and open a pull request via gh")
+  .argument('<agent-name>', 'agent to open a PR for')
+  .option('--title <title>', 'PR title (default: gh --fill from the last commit)')
+  .option('--base <branch>', "PR base branch (default: the agent's recorded base)")
+  .option('--draft', 'open the PR as a draft')
+  .action((name: string, opts: { title?: string; base?: string; draft?: boolean }) =>
+    run(() => pr(name, opts)),
+  );
 
 program
   .command('watch')
@@ -106,7 +152,8 @@ program
   .command('doctor')
   .description('diagnose state/reality drift; exits 1 if problems remain unfixed')
   .option('--fix', 'repair what can be repaired (rebuild state, adopt/remove orphans, prune stale entries)')
-  .action((opts: { fix?: boolean }) =>
+  .option('--json', 'print machine-readable JSON instead of the report')
+  .action((opts: { fix?: boolean; json?: boolean }) =>
     run(async () => {
       const result = await doctor(opts);
       if (!result.healthy) process.exitCode = 1;
@@ -133,19 +180,28 @@ program
   .command('clean')
   .description('remove agents whose branches are fully merged into their base')
   .option('--dry-run', 'list what would be cleaned without removing anything')
-  .action((opts: { dryRun?: boolean }) => run(() => clean(opts)));
+  .option(
+    '--stale <days>',
+    'also remove agents idle for this many days (clean worktree only; branch kept)',
+    parseFloat,
+  )
+  .action((opts: { dryRun?: boolean; stale?: number }) => run(() => clean(opts)));
 
 program.addHelpText(
   'after',
   '\nExamples:\n' +
     '  fleet spawn claude              spawn an agent off the current branch\n' +
     '  fleet spawn codex --from main   spawn a second agent off main\n' +
-    '  fleet check                     any files touched by both?\n' +
+    '  fleet check --lines             any files touched by both, line-precise?\n' +
+    '  fleet sync claude               catch fleet/claude up with its base\n' +
+    '  fleet exec claude -- npm test   run tests inside the claude worktree\n' +
     '  fleet diff claude               review before merging fleet/claude\n' +
     '  fleet merge claude              merge fleet/claude and clean it up\n' +
+    '  fleet pr claude                 push fleet/claude and open a PR via gh\n' +
     '  fleet remove codex --force      drop a worktree, discarding its changes\n' +
-    '  fleet clean                     sweep up fully merged agents\n' +
-    '  fleet doctor --fix              repair state drift after manual surgery\n',
+    '  fleet clean --stale 14          sweep merged agents + 2-week-idle ones\n' +
+    '  fleet doctor --fix              repair state drift after manual surgery\n' +
+    '  fleet list --json               agent table as JSON, for scripts and CI\n',
 );
 
 program.parseAsync(process.argv).catch((err: unknown) => {

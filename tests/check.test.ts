@@ -57,4 +57,75 @@ describe('fleet check', () => {
     const result = await check({ cwd: repo.root });
     expect(result).toEqual({ collisions: [], agentsChecked: 1 });
   });
+
+  it('--json prints the result as parseable JSON', async () => {
+    await spawn('alice', { cwd: repo.root });
+    await spawn('bob', { cwd: repo.root });
+    await commitFile(worktreePath(repo.root, 'alice'), 'src.txt', 'alice\n', 'feat: alice edit');
+    await commitFile(worktreePath(repo.root, 'bob'), 'src.txt', 'bob\n', 'feat: bob edit');
+
+    const result = await check({ json: true, cwd: repo.root });
+
+    const printed = JSON.parse(
+      vi.mocked(console.log).mock.calls.at(-1)?.[0] as string,
+    ) as typeof result;
+    expect(printed).toEqual(result);
+    expect(printed.collisions).toEqual([{ file: 'src.txt', agents: ['alice', 'bob'] }]);
+  });
+});
+
+describe('fleet check --lines', () => {
+  const numberedLines = (): string[] => Array.from({ length: 12 }, (_, i) => `line${i + 1}`);
+
+  async function seedNumberedFile(): Promise<void> {
+    await commitFile(repo.root, 'big.txt', `${numberedLines().join('\n')}\n`, 'feat: fixture');
+  }
+
+  function editLine(agent: string, lineNo: number): string {
+    const lines = numberedLines();
+    lines[lineNo - 1] = `edited by ${agent}`;
+    return `${lines.join('\n')}\n`;
+  }
+
+  it('treats same-file edits on disjoint lines as non-collisions', async () => {
+    await seedNumberedFile();
+    await spawn('alice', { cwd: repo.root });
+    await spawn('bob', { cwd: repo.root });
+    await commitFile(worktreePath(repo.root, 'alice'), 'big.txt', editLine('alice', 2), 'feat: alice edit');
+    await commitFile(worktreePath(repo.root, 'bob'), 'big.txt', editLine('bob', 10), 'feat: bob edit');
+
+    const result = await check({ lines: true, cwd: repo.root });
+
+    expect(result.collisions).toEqual([]);
+    expect(result.disjoint).toEqual([{ file: 'big.txt', agents: ['alice', 'bob'] }]);
+  });
+
+  it('flags overlapping edits with their line ranges, including uncommitted ones', async () => {
+    await seedNumberedFile();
+    await spawn('alice', { cwd: repo.root });
+    await spawn('bob', { cwd: repo.root });
+    await commitFile(worktreePath(repo.root, 'alice'), 'big.txt', editLine('alice', 5), 'feat: alice edit');
+    // bob's overlapping edit is uncommitted — still measured from the merge base.
+    writeFileSync(path.join(worktreePath(repo.root, 'bob'), 'big.txt'), editLine('bob', 5));
+
+    const result = await check({ lines: true, cwd: repo.root });
+
+    expect(result.collisions).toEqual([
+      { file: 'big.txt', agents: ['alice', 'bob'], overlap: '5' },
+    ]);
+    expect(result.disjoint).toEqual([]);
+  });
+
+  it('marks files without line info (untracked on both sides) as whole-file', async () => {
+    await spawn('alice', { cwd: repo.root });
+    await spawn('bob', { cwd: repo.root });
+    writeFileSync(path.join(worktreePath(repo.root, 'alice'), 'new.txt'), 'a\n');
+    writeFileSync(path.join(worktreePath(repo.root, 'bob'), 'new.txt'), 'b\n');
+
+    const result = await check({ lines: true, cwd: repo.root });
+
+    expect(result.collisions).toEqual([
+      { file: 'new.txt', agents: ['alice', 'bob'], overlap: 'whole-file' },
+    ]);
+  });
 });

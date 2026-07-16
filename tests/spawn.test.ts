@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import tmp from 'tmp';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -77,5 +77,49 @@ describe('fleet spawn', () => {
       /Not inside a git repository/,
     );
     dir.removeCallback();
+  });
+});
+
+describe('fleet spawn provisioning (.fleetrc.json)', () => {
+  it('copies copyOnSpawn entries into the new worktree, skipping missing ones', async () => {
+    writeFileSync(path.join(repo.root, '.env'), 'SECRET=1\n');
+    writeFileSync(
+      path.join(repo.root, '.fleetrc.json'),
+      JSON.stringify({ copyOnSpawn: ['.env', 'missing.txt'] }),
+    );
+
+    const result = await spawn('alice', { cwd: repo.root });
+
+    expect(result.copied).toEqual(['.env']);
+    expect(existsSync(path.join(result.worktreePath, '.env'))).toBe(true);
+  });
+
+  it('runs the postSpawn hook inside the worktree', async () => {
+    const script = path.join(repo.root, 'setup.cjs');
+    writeFileSync(script, "require('fs').writeFileSync('setup-ran.txt', 'ok');\n");
+    writeFileSync(
+      path.join(repo.root, '.fleetrc.json'),
+      JSON.stringify({ postSpawn: `node ${script}` }),
+    );
+
+    const result = await spawn('alice', { cwd: repo.root });
+
+    expect(result.postSpawnExitCode).toBe(0);
+    expect(existsSync(path.join(result.worktreePath, 'setup-ran.txt'))).toBe(true);
+  });
+
+  it('keeps the worktree and state when the postSpawn hook fails', async () => {
+    const script = path.join(repo.root, 'boom.cjs');
+    writeFileSync(script, 'process.exit(2);\n');
+    writeFileSync(
+      path.join(repo.root, '.fleetrc.json'),
+      JSON.stringify({ postSpawn: `node ${script}` }),
+    );
+
+    const result = await spawn('alice', { cwd: repo.root });
+
+    expect(result.postSpawnExitCode).toBe(2);
+    expect(existsSync(result.worktreePath)).toBe(true);
+    expect(readState(repo.root).agents['alice']).toBeDefined();
   });
 });

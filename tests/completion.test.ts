@@ -24,7 +24,7 @@ describe('fleet completion', () => {
 
     for (const shell of ['bash', 'zsh', 'fish'] as const) {
       const script = await completion(shell, { cwd: repo.root });
-      for (const command of ['spawn', 'merge', 'doctor', 'watch', 'completion']) {
+      for (const command of ['spawn', 'merge', 'doctor', 'watch', 'completion', 'sync', 'exec', 'pr']) {
         expect(script, `${shell} should list "${command}"`).toContain(command);
       }
       expect(script).toContain('alice');

@@ -63,3 +63,39 @@ export async function commitFile(
 export function worktreePath(repoRoot: string, agentName: string): string {
   return path.join(repoRoot, '.fleet', 'worktrees', agentName);
 }
+
+// Enough environment for git to run; nothing more. simple-git's unsafe-env
+// guard rejects a full process.env spread whenever the session sets EDITOR,
+// GIT_ASKPASS, PAGER, … (common in CI and agent harnesses).
+const CHILD_ENV_KEYS = new Set([
+  'PATH',
+  'SYSTEMROOT',
+  'COMSPEC',
+  'TEMP',
+  'TMP',
+  'HOME',
+  'USERPROFILE',
+  'HOMEDRIVE',
+  'HOMEPATH',
+]);
+
+/** Write and commit a file with explicit author/committer dates (staleness tests). */
+export async function commitFileAt(
+  repoDir: string,
+  file: string,
+  content: string,
+  message: string,
+  isoDate: string,
+): Promise<void> {
+  writeFileSync(path.join(repoDir, file), content);
+  const env: Record<string, string> = {
+    GIT_AUTHOR_DATE: isoDate,
+    GIT_COMMITTER_DATE: isoDate,
+  };
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined && CHILD_ENV_KEYS.has(key.toUpperCase())) env[key] = value;
+  }
+  const git = simpleGit({ baseDir: repoDir }).env(env);
+  await git.add([file]);
+  await git.commit(message);
+}

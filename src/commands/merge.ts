@@ -12,6 +12,7 @@ import {
   uncommittedFiles,
   verifyBranch,
 } from '../lib/git.js';
+import { runShell } from '../lib/proc.js';
 import { getAgent, readState, worktreeAbsPath, writeState } from '../lib/state.js';
 import { check } from './check.js';
 import { clean } from './clean.js';
@@ -87,6 +88,24 @@ export async function merge(name: string, options: MergeOptions = {}): Promise<M
           `${lines}\n` +
           'Merge or remove those agents first (or resolve the overlap), then re-run.',
       );
+    }
+  }
+
+  // preMerge hook: e.g. "npm test" in the agent's worktree. Runs after the
+  // collision gate and before the merge starts, so a failure aborts cleanly.
+  if (config.preMerge) {
+    const hookDir = worktreeAbsPath(repoRoot, record);
+    if (existsSync(hookDir)) {
+      console.log(dim(`preMerge: ${config.preMerge}`));
+      const exitCode = await runShell(config.preMerge, hookDir);
+      if (exitCode !== 0) {
+        throw new FleetError(
+          `preMerge hook failed (exit ${exitCode}): ${config.preMerge}\n` +
+            `The merge was not started — ${into} is unchanged.`,
+        );
+      }
+    } else {
+      console.log(warn(`preMerge hook skipped: worktree missing (${hookDir})`));
     }
   }
 

@@ -53,6 +53,27 @@ describe('.fleetrc.json', () => {
     expect(() => readConfig(repo.root)).toThrow(/Unknown key "watchInterva"/);
   });
 
+  it('reads the provisioning and hook keys', () => {
+    writeConfig('{ "copyOnSpawn": [".env"], "postSpawn": "npm ci", "preMerge": "npm test" }');
+    expect(readConfig(repo.root)).toEqual({
+      copyOnSpawn: ['.env'],
+      postSpawn: 'npm ci',
+      preMerge: 'npm test',
+    });
+  });
+
+  it('rejects copyOnSpawn entries that escape the repository', () => {
+    writeConfig('{ "copyOnSpawn": ["../evil"] }');
+    expect(() => readConfig(repo.root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects wrong types for the provisioning and hook keys', () => {
+    writeConfig('{ "copyOnSpawn": ".env" }');
+    expect(() => readConfig(repo.root)).toThrow(/array of non-empty path strings/);
+    writeConfig('{ "preMerge": 42 }');
+    expect(() => readConfig(repo.root)).toThrow(/non-empty command string/);
+  });
+
   it('spawn precedence: --from flag > defaultBase > current branch', async () => {
     // Two extra branches to distinguish the sources.
     await repo.git.checkoutLocalBranch('dev');

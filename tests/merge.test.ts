@@ -121,4 +121,42 @@ describe('fleet merge', () => {
   it('errors clearly for an unknown agent', async () => {
     await expect(merge('ghost', { cwd: repo.root })).rejects.toThrow(/No agent named "ghost"/);
   });
+
+  it('a failing preMerge hook aborts before the merge starts', async () => {
+    const script = path.join(repo.root, 'failing-hook.cjs');
+    writeFileSync(script, 'process.exit(1);\n');
+    writeFileSync(
+      path.join(repo.root, '.fleetrc.json'),
+      JSON.stringify({ preMerge: `node ${script}` }),
+    );
+    await spawn('alice', { cwd: repo.root });
+    await commitFile(worktreePath(repo.root, 'alice'), 'feature.txt', 'f\n', 'feat: feature');
+
+    await expect(merge('alice', { cwd: repo.root })).rejects.toThrow(
+      /preMerge hook failed \(exit 1\)/,
+    );
+
+    // Nothing was merged and the agent is intact.
+    expect(existsSync(path.join(repo.root, 'feature.txt'))).toBe(false);
+    expect(await branchExists(gitAt(repo.root), 'fleet/alice')).toBe(true);
+    expect(readState(repo.root).agents['alice']).toBeDefined();
+  });
+
+  it('a passing preMerge hook runs in the worktree and the merge proceeds', async () => {
+    const marker = path.join(repo.root, 'hook-ran.txt');
+    const script = path.join(repo.root, 'passing-hook.cjs');
+    writeFileSync(script, `require('fs').writeFileSync(${JSON.stringify(marker)}, 'ok');\n`);
+    writeFileSync(
+      path.join(repo.root, '.fleetrc.json'),
+      JSON.stringify({ preMerge: `node ${script}` }),
+    );
+    await spawn('alice', { cwd: repo.root });
+    await commitFile(worktreePath(repo.root, 'alice'), 'feature.txt', 'f\n', 'feat: feature');
+
+    const result = await merge('alice', { cwd: repo.root });
+
+    expect(existsSync(marker)).toBe(true);
+    expect(result.cleaned).toBe(true);
+    expect(existsSync(path.join(repo.root, 'feature.txt'))).toBe(true);
+  });
 });

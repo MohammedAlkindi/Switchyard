@@ -13,6 +13,8 @@ import { readState, worktreeAbsPath } from '../lib/state.js';
 import type { AgentRecord } from '../lib/state.js';
 
 export interface ListOptions {
+  /** Print machine-readable JSON instead of the table. */
+  json?: boolean;
   cwd?: string;
 }
 
@@ -63,6 +65,11 @@ export function buildListTable(listings: AgentListing[]): string {
 
 export async function list(options: ListOptions = {}): Promise<AgentListing[]> {
   const listings = await collectListings(options);
+
+  if (options.json) {
+    console.log(JSON.stringify(listings, null, 2));
+    return listings;
+  }
 
   if (listings.length === 0) {
     console.log('No active agents. Run `fleet spawn <name>` to create one.');

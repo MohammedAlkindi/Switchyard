@@ -46,4 +46,16 @@ describe('fleet status', () => {
   it('errors clearly for an unknown agent', async () => {
     await expect(status('ghost', { cwd: repo.root })).rejects.toThrow(/No agent named "ghost"/);
   });
+
+  it('--json prints the result as parseable JSON', async () => {
+    await spawn('alice', { cwd: repo.root });
+
+    const result = await status('alice', { json: true, cwd: repo.root });
+
+    const printed = JSON.parse(
+      vi.mocked(console.log).mock.calls.at(-1)?.[0] as string,
+    ) as typeof result;
+    expect(printed).toEqual(result);
+    expect(printed.record.name).toBe('alice');
+  });
 });

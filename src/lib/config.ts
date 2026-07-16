@@ -13,13 +13,25 @@ export interface FleetConfig {
   watchInterval?: number;
   /** Run a `fleet clean` sweep after every successful `fleet merge`. */
   autoClean?: boolean;
+  /**
+   * Repo-root-relative files/directories copied into every new worktree by
+   * `fleet spawn` — the gitignored essentials a fresh worktree lacks (.env, …).
+   */
+  copyOnSpawn?: string[];
+  /** Shell command run inside a new worktree after `fleet spawn` (e.g. "npm ci"). */
+  postSpawn?: string;
+  /**
+   * Shell command run inside the agent's worktree before `fleet merge` starts
+   * the merge (e.g. "npm test"). A non-zero exit aborts the merge.
+   */
+  preMerge?: string;
 }
 
 export const CONFIG_FILE = '.fleetrc.json';
 export const DEFAULT_WATCH_INTERVAL = 3;
 export const DEFAULT_AUTO_CLEAN = false;
 
-const VALID_KEYS = 'defaultBase, watchInterval, autoClean';
+const VALID_KEYS = 'defaultBase, watchInterval, autoClean, copyOnSpawn, postSpawn, preMerge';
 
 export function configPath(repoRoot: string): string {
   return path.join(repoRoot, CONFIG_FILE);
@@ -65,6 +77,35 @@ export function readConfig(repoRoot: string): FleetConfig {
           throw new FleetError(`"autoClean" in ${CONFIG_FILE} must be true or false.`);
         }
         config.autoClean = value;
+        break;
+      case 'copyOnSpawn': {
+        if (!Array.isArray(value) || value.some((v) => typeof v !== 'string' || v.trim() === '')) {
+          throw new FleetError(
+            `"copyOnSpawn" in ${CONFIG_FILE} must be an array of non-empty path strings.`,
+          );
+        }
+        const entries = value as string[];
+        for (const entry of entries) {
+          if (path.isAbsolute(entry) || entry.split(/[\\/]/).includes('..')) {
+            throw new FleetError(
+              `"copyOnSpawn" entry "${entry}" in ${CONFIG_FILE} must be a relative path inside the repository.`,
+            );
+          }
+        }
+        config.copyOnSpawn = entries;
+        break;
+      }
+      case 'postSpawn':
+        if (typeof value !== 'string' || value.trim() === '') {
+          throw new FleetError(`"postSpawn" in ${CONFIG_FILE} must be a non-empty command string.`);
+        }
+        config.postSpawn = value;
+        break;
+      case 'preMerge':
+        if (typeof value !== 'string' || value.trim() === '') {
+          throw new FleetError(`"preMerge" in ${CONFIG_FILE} must be a non-empty command string.`);
+        }
+        config.preMerge = value;
         break;
       default:
         throw new FleetError(`Unknown key "${key}" in ${CONFIG_FILE}. Valid keys: ${VALID_KEYS}.`);
